@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Login | Zoy Designs</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .login-page-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: var(--color-light-gray);
+            padding: 2rem;
+        }
+        .login-box {
+            background: var(--color-white);
+            padding: 3rem;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border-top: 4px solid var(--color-gold);
+            text-align: center;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 2rem;
+            color: #777;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: var(--transition-standard);
+        }
+        .back-link:hover {
+            color: var(--color-gold);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-page-container">
+        <div class="login-box">
+            <a href="index.html" class="logo" style="display: block; margin-bottom: 2rem; font-size: 1.8rem;">Zoy Designs</a>
+            
+            <h2 class="section-title text-gold" style="font-size: 2rem; margin-bottom: 1.5rem;">Client Login</h2>
+            
+            <form id="dedicated-login-form">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn-gold" style="width: 100%; margin-top: 1rem;">Sign In</button>
+                <p class="login-msg" id="login-msg"></p>
+            </form>
+            
+            <a href="index.html" class="back-link">&larr; Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('dedicated-login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const msg = document.getElementById('login-msg');
+            msg.style.color = 'green';
+            msg.textContent = `Welcome back, ${email}! Loading dashboard...`;
+            setTimeout(() => {
+                window.location.href = 'index.html'; // Redirect to home or dashboard after mock login
+            }, 1500);
+        });
+    </script>
+</body>
+</html>
