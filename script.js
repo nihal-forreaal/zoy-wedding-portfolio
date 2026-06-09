@@ -55,8 +55,9 @@ function initWebSocket() {
     if (!sessionId) {
         sessionId = 'client-' + Math.floor(Math.random() * 10000);
     }
-    // Connect to the local FastAPI WebSocket endpoint with session ID
-    ws = new WebSocket(`ws://${window.location.host}/ws/${sessionId}`);
+    // Automatically use wss:// for secure HTTPS connections on Render
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${protocol}//${window.location.host}/ws/${sessionId}`);
     
     ws.onmessage = function(event) {
         const botMsg = document.createElement('div');
