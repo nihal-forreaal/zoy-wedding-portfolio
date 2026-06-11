@@ -1,102 +1,85 @@
 import asyncio
 import os
-import discord
-from discord.ext import commands
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
+
 # ==========================================
-# CONFIGURATION - USE RENDER ENVIRONMENT VARIABLES
-# ==========================================
-DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN", "")
-CATEGORY_ID = int(os.environ.get("CATEGORY_ID", "0"))
+# Simple keyword-based auto-responder chat
+# No external integrations required.
 # ==========================================
 
-app = FastAPI()
+AUTO_RESPONSES = [
+    (["price", "cost", "package", "₹", "rs", "rupee"], "Our packages start from ₹299. Check our Pricing section for full details, or contact us directly for a custom quote!"),
+    (["rsvp", "attend", "guest"], "Yes! Our Premium package includes a fully digital RSVP system for all your events, including multi-event support."),
+    (["time", "long", "week", "deliver", "ready"], "We typically deliver your custom wedding website within 1–2 weeks of receiving your photos and details."),
+    (["domain", "url", "link", "website address"], "A custom domain name is included for one year with our Premium and Luxury packages."),
+    (["photo", "gallery", "picture", "image"], "Our Premium package includes a full photo gallery. You can share as many photos as you like with your guests!"),
+    (["map", "venue", "location", "direction"], "We integrate interactive Google Maps directly into your wedding website so guests never get lost."),
+    (["countdown", "timer", "date"], "Yes! We add a beautiful live countdown timer to your site to build excitement as your big day approaches."),
+    (["contact", "email", "whatsapp", "reach", "talk"], "You can email us at hello@zoydesigns.com or WhatsApp us — just click the Contact Us button at the top!"),
+    (["hi", "hello", "hey", "hii", "helo"], "Hi there! Welcome to Zoy Designs 👋 How can we help you plan your perfect wedding website today?"),
+]
+
+DEFAULT_RESPONSE = (
+    "Thank you for your message! Our team will get back to you shortly. "
+    "For urgent queries, please email us at hello@zoydesigns.com or use the WhatsApp button."
+)
+
+
+def get_auto_response(message: str) -> str:
+    msg_lower = message.lower()
+    for keywords, response in AUTO_RESPONSES:
+        if any(kw in msg_lower for kw in keywords):
+            return response
+    return DEFAULT_RESPONSE
+
 
 class ConnectionManager:
     def __init__(self):
-        # Map channel_id -> websocket
-        self.active_connections: dict[int, WebSocket] = {}
+        self.active_connections: dict[str, WebSocket] = {}
 
-    async def connect(self, websocket: WebSocket, channel_id: int):
+    async def connect(self, websocket: WebSocket, session_id: str):
         await websocket.accept()
-        self.active_connections[channel_id] = websocket
+        self.active_connections[session_id] = websocket
 
-    def disconnect(self, channel_id: int):
-        if channel_id in self.active_connections:
-            del self.active_connections[channel_id]
+    def disconnect(self, session_id: str):
+        self.active_connections.pop(session_id, None)
 
-    async def send_message(self, channel_id: int, message: str):
-        if channel_id in self.active_connections:
-            await self.active_connections[channel_id].send_text(message)
+    async def send_message(self, session_id: str, message: str):
+        ws = self.active_connections.get(session_id)
+        if ws:
+            await ws.send_text(message)
+
 
 manager = ConnectionManager()
 
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+app = FastAPI()
 
-@bot.event
-async def on_ready():
-    print(f'Discord Bot Logged in as {bot.user}')
-
-@bot.command()
-async def ping(ctx):
-    await ctx.send("Pong! The Zoy Designs bot is online.")
-
-@bot.event
-async def on_message(message):
-    await bot.process_commands(message)
-    if message.author == bot.user:
-        return
-    if message.content and not message.content.startswith("!"):
-        # Route to specific websocket connected to this channel
-        await manager.send_message(message.channel.id, f"Zoy Designs: {message.content}")
 
 @app.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    channel_id = None
+    # Always accept the connection first before any logic
+    await manager.connect(websocket, session_id)
     try:
-        category = await bot.fetch_channel(CATEGORY_ID)
-        if category:
-            channel = discord.utils.get(category.text_channels, name=session_id)
-            if not channel:
-                channel = await category.create_text_channel(session_id)
-            channel_id = channel.id
-            await manager.connect(websocket, channel_id)
-            
-            while True:
-                data = await websocket.receive_text()
-                print(f"Received message from {session_id}: {data}")
-                await channel.send(f"**New Message:** {data}")
-        else:
-            await websocket.accept()
-            await websocket.send_text("Error: Support offline (Category not found).")
-            await websocket.close()
+        while True:
+            data = await websocket.receive_text()
+            # Simulate a brief "typing" delay for a natural feel
+            await asyncio.sleep(0.8)
+            response = get_auto_response(data)
+            await manager.send_message(session_id, response)
     except WebSocketDisconnect:
-        if channel_id:
-            manager.disconnect(channel_id)
+        manager.disconnect(session_id)
     except Exception as e:
-        print(f"Error in websocket for {session_id}: {e}")
+        print(f"WebSocket error for session '{session_id}': {e}")
+        manager.disconnect(session_id)
 
+
+# Serve static files (HTML/CSS/JS) from the current directory
 app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
-async def run_discord():
-    while True:
-        try:
-            if DISCORD_TOKEN != "YOUR_DISCORD_BOT_TOKEN_HERE":
-                await bot.start(DISCORD_TOKEN)
-            else:
-                break
-        except Exception as e:
-            print(f"Network Error connecting to Discord: {e}")
-            await asyncio.sleep(10)
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(run_discord())
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

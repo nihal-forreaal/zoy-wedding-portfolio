@@ -425,8 +425,9 @@ ul {
 }
 .login-msg {
     margin-top: 1rem;
-    color: red;
+    color: inherit;
     font-size: 0.9rem;
+    min-height: 1.2em; /* Reserve space to avoid layout shift */
 }
 
 /* Chat Widget */
